@@ -1,7 +1,7 @@
 import { User } from '../models/user.model.js';
 import crypto from "crypto";
 import bcryptjs from 'bcryptjs';
-
+import { generateTokenAndSetCookie } from '../utils/generateTokenAndSetCookie.js';
 
 
 
@@ -33,7 +33,7 @@ export const signup = async (req, res) => {
     await user.save();
 
     
-
+     generateTokenAndSetCookie(res, user._id);
 
 
 
@@ -113,7 +113,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
-    //
+    generateTokenAndSetCookie(res, user._id);
     user.lastLogin = new Date();
     await user.save();
 
