@@ -185,10 +185,6 @@ export const resetPassword = async (req, res) => {
 
     await sendResetSuccessEmail(user.email);
 
-
-
-    await sendResetSuccessEmail(user.email); // ✅ Gmail-based email
-
     res.status(200).json({ success: true, message: "Password reset successful" });
 
   } catch (error) {
