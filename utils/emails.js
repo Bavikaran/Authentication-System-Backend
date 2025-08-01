@@ -71,3 +71,19 @@ export const sendPasswordResetEmail = async (email, resetURL) => {
     throw new Error("Password reset email failed");
   }
 };
+
+
+export const sendResetSuccessEmail = async (email) => {
+  try {
+    const response = await transporter.sendMail({
+      from: sender,
+      to: email,
+      subject: "Password Reset Successful",
+      html: PASSWORD_RESET_SUCCESS_TEMPLATE,
+    });
+    console.log("Reset success email sent:", response.messageId);
+  } catch (error) {
+    console.error("Error sending reset success email:", error);
+    throw new Error("Reset success email failed");
+  }
+};
