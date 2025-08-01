@@ -149,6 +149,9 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordExpiresAt = resetTokenExpiresAt;
     await user.save();
 
+    const resetURL = ${process.env.CLIENT_URL}/reset-password/${resetToken};
+    await sendPasswordResetEmail(user.email, resetURL);
+
 
     res.status(200).json({ success: true, message: "Password reset link sent to your email" });
 
@@ -179,6 +182,8 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpiresAt = undefined;
     await user.save();
+
+
 
     await sendResetSuccessEmail(user.email); // ✅ Gmail-based email
 
