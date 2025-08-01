@@ -34,3 +34,23 @@ export const sendVerificationEmail = async (email, verificationToken) => {
     throw new Error("Verification email failed");
   }
 };
+
+
+export const sendWelcomeEmail = async (email, name) => {
+  const html = `
+    <h2>Welcome, ${name}!</h2>
+    <p>Thanks for joining our platform. We're excited to have you.</p>
+  `;
+  try {
+    const response = await transporter.sendMail({
+      from: sender,
+      to: email,
+      subject: "Welcome to the platform!",
+      html,
+    });
+    console.log("Welcome email sent:", response.messageId);
+  } catch (error) {
+    console.error("Error sending welcome email:", error);
+    throw new Error("Welcome email failed");
+  }
+};
