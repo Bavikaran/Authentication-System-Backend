@@ -17,3 +17,20 @@ const transporter = nodemailer.createTransport({
 });
 
 const sender = "INTE21323 Auth App" <${process.env.EMAIL_USER}>;
+
+
+export const sendVerificationEmail = async (email, verificationToken) => {
+  const html = VERIFICATION_EMAIL_TEMPLATE.replace("{verificationCode}", verificationToken);
+  try {
+    const response = await transporter.sendMail({
+      from: sender,
+      to: email,
+      subject: "Verify your email",
+      html,
+    });
+    console.log("Verification email sent:", response.messageId);
+  } catch (error) {
+    console.error("Error sending verification email:", error);
+    throw new Error("Verification email failed");
+  }
+};
