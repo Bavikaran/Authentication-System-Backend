@@ -1,7 +1,7 @@
 import { User } from '../models/user.model.js';
 import crypto from "crypto";
 import bcryptjs from 'bcryptjs';
-
+import { generateTokenAndSetCookie } from '../utils/generateTokenAndSetCookie.js';
 
 
 
@@ -33,7 +33,7 @@ export const signup = async (req, res) => {
     await user.save();
 
     
-
+     generateTokenAndSetCookie(res, user._id);
 
 
 
@@ -50,13 +50,6 @@ export const signup = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
-
-
-
-
-
-
-
 
 
 
