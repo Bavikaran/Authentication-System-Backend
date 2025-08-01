@@ -105,7 +105,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
-    
+    generateTokenAndSetCookie(res, user._id);
     user.lastLogin = new Date();
     await user.save();
 
