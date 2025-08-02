@@ -81,14 +81,14 @@ export const signup = async (req, res, next) => {
 
 
 export const verifyEmail = async (req, res) => {
-  const { code, resend } = req.body;  // Added resend flag
+  const { code, resend } = req.body;
 
   try {
-    // Check if the user is either verifying or resending the verification link
+    // Find user based on code or email (if not verified)
     const user = await User.findOne({
       $or: [
-        { verificationToken: code, verificationTokenExpiresAt: { $gt: Date.now() } },
-        { email: req.body.email, isVerified: false } // Check if the email exists but is unverified
+        { verificationToken: code, verificationTokenExpiresAt: { $gt: Date.now() } }, // Check if token is valid
+        { email: req.body.email, isVerified: false } // Check if the email is unverified
       ],
     });
 
@@ -96,6 +96,7 @@ export const verifyEmail = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid or expired verification code" });
     }
 
+    // If user is already verified and not asking for resend
     if (user.isVerified && !resend) {
       return res.status(400).json({
         success: false,
@@ -103,12 +104,13 @@ export const verifyEmail = async (req, res) => {
       });
     }
 
-    // If not verified or resend is triggered, generate a new verification token and expiration
+    // If not verified or resend is triggered, generate a new token
     if (resend || !user.isVerified) {
       const newVerificationToken = Math.floor(100000 + Math.random() * 900000).toString();
       user.verificationToken = newVerificationToken;
       user.verificationTokenExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours validity
 
+      // Save the new verification token
       await user.save();
 
       // Send the verification email with the new token
@@ -120,17 +122,19 @@ export const verifyEmail = async (req, res) => {
       });
     }
 
-    // If already verified, no need to proceed further
+    // If the code is correct and the user is not already verified, set 'isVerified' to true
+    user.isVerified = true; // Mark the account as verified
+    await user.save(); // Save the updated user
+
     res.status(200).json({
       success: true,
       message: "Email verified successfully",
     });
 
   } catch (error) {
-    console.log("error in verifyEmail", error);
-    next(error);
+    console.error("Error in verifyEmail", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
-  
 };
 
 
