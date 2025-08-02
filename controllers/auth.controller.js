@@ -32,7 +32,7 @@ export const signup = async (req, res, next) => {
     // Check if user already exists
     const userAlreadyExists = await User.findOne({ email });
     if (userAlreadyExists) {
-      return next(new CustomError(400, "User already exists with this email"));
+       next(new CustomError(400, "User already exists with this email"));
       logger.warn(`Signup attempt with existing email: ${email}`);
     }
 
@@ -104,26 +104,10 @@ export const verifyEmail = async (req, res) => {
       });
     }
 
-    // If not verified or resend is triggered, generate a new token
-    if (resend || !user.isVerified) {
-      const newVerificationToken = Math.floor(100000 + Math.random() * 900000).toString();
-      user.verificationToken = newVerificationToken;
-      user.verificationTokenExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours validity
-
-      // Save the new verification token
-      await user.save();
-
-      // Send the verification email with the new token
-      await sendVerificationEmail(user.email, newVerificationToken);
-
-      return res.status(200).json({
-        success: true,
-        message: "Verification email resent. Please check your inbox.",
-      });
-    }
-
     // If the code is correct and the user is not already verified, set 'isVerified' to true
     user.isVerified = true; // Mark the account as verified
+    user.verificationToken = undefined; // Clear the verification token
+    user.verificationTokenExpiresAt = undefined; // Clear the expiration time
     await user.save(); // Save the updated user
 
     res.status(200).json({
@@ -132,13 +116,12 @@ export const verifyEmail = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error in verifyEmail", error);
+    console.log("Error in verifyEmail", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-
-export const login = async (req, res) => {
+export const login = async (req, res,next) => {
 
   const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -155,7 +138,7 @@ export const login = async (req, res) => {
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
-      return next(new CustomError(400, "Invalid credentials" ));
+       next(new CustomError(400, "Invalid credentials" ));
     }
 
     logger.info(`User logged in: ${user.email}`);
@@ -189,7 +172,7 @@ export const logout = async (req, res) => {
   try{
     res.clearCookie("token");
     res.status(200).json({ success: true, message: "Logged out successfully" });
-    logger.info(`User logged out successfully: ${email}`);
+    
   }
   catch (error) {
     console.log("Error in logout", error);
@@ -205,9 +188,9 @@ export const logout = async (req, res) => {
 export const forgotPassword = async (req, res) => {
 
   const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
   const { email } = req.body;
 
@@ -215,7 +198,7 @@ export const forgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return next(new CustomError(400, "User not found with this email"));
+      return res.status(400).json({ success: false, message: "User not found with this email" });
     }
 
     const resetToken = crypto.randomBytes(20).toString("hex");
@@ -225,63 +208,44 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordExpiresAt = resetTokenExpiresAt;
     await user.save();
 
+    // Use process.env.CLIENT_URL to dynamically generate the reset URL
     const resetURL = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
     await sendPasswordResetEmail(user.email, resetURL);
-
 
     res.status(200).json({ success: true, message: "Password reset link sent to your email" });
 
   } catch (error) {
     console.log("Error in forgotPassword", error);
-    next(error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 
+export const resetPassword = async (req, res, next) => {
+  const { token } = req.params;
+  const { password } = req.body;
 
+  // Ensure the token is valid and not expired
+  const user = await User.findOne({
+    resetPasswordToken: token,
+    resetPasswordExpiresAt: { $gt: Date.now() },
+  });
 
-
-export const resetPassword = async (req, res) => {
-
-  const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-  try {
-    const { token } = req.params;
-    const { password } = req.body;
-
-    const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpiresAt: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return next(new CustomError(400, "Invalid or expired reset token" ));
-      logger.warn(`Password reset failed for email: ${user.email}`);
-    }
-
-    const hashedPassword = await bcryptjs.hash(password, 10);
-    user.password = hashedPassword;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpiresAt = undefined;
-    await user.save();
-
-    await sendResetSuccessEmail(user.email);
-
-    logger.info(`Password reset successful for email: ${user.email}`);
-    res.status(200).json({ success: true, message: "Password reset successful" });
-
-  } catch (error) {
-    console.log("Error in resetPassword", error);
-    next(error);
-    logger.error(`Error during password reset for email: ${email}, Error: ${error.message}`);
+  if (!user) {
+    return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
   }
-  
+
+  // Hash the new password
+  const hashedPassword = await bcryptjs.hash(password, 10);
+  user.password = hashedPassword;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpiresAt = undefined;
+  await user.save();
+
+  await sendResetSuccessEmail(user.email);
+
+  res.status(200).json({ success: true, message: "Password reset successful" });
 };
-
-
 
 
 
@@ -290,7 +254,7 @@ export const checkAuth = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("-password");
     if (!user) {
-      return  next(new CustomError(400, "User not found"));
+      next(new CustomError(400, "User not found"));
     }
 
     res.status(200).json({ success: true, user });
