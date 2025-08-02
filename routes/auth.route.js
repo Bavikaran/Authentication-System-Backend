@@ -2,6 +2,10 @@ import express from "express";
 import { signup,login,logout,verifyEmail,forgotPassword,resetPassword,checkAuth } from "../controllers/auth.controller.js"; 
 import { verifyToken } from "../middleware/verifyToken.js";
 import sanitizeInput from "../middleware/sanitizeInput.js";
+import {validationResult} from 'express-validator';
+
+
+
 const router = express.Router();
 
 
