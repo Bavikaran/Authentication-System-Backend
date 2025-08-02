@@ -13,6 +13,7 @@ router.get("/check-auth", verifyToken, checkAuth);
 
 
 router.post("/signup",
+    body('name').isString().notEmpty(),
     body('email').isEmail().normalizeEmail(),  
     body('password').isLength({ min: 6 }),
     sanitizeInput, signup); 

@@ -32,8 +32,8 @@ export const signup = async (req, res, next) => {
     // Check if user already exists
     const userAlreadyExists = await User.findOne({ email });
     if (userAlreadyExists) {
-      return next(new CustomError(400, "User already exists with this email"));
       logger.warn(`Signup attempt with existing email: ${email}`);
+      return next(new CustomError(400, "User already exists with this email"));
     }
   
 
@@ -233,8 +233,8 @@ export const resetPassword = async (req, res, next) => {
   });
 
     if (!user) {
-      return next(new CustomError(400, "Invalid or expired reset token" ));
       logger.warn(`Password reset failed for email: ${user.email}`);
+      return next(new CustomError(400, "Invalid or expired reset token" ));
     }
 
   // Hash the new password
