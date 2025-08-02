@@ -10,6 +10,8 @@ const router = express.Router();
 
 
 router.get("/check-auth", verifyToken, checkAuth);
+
+
 router.post("/signup",
     body('email').isEmail().normalizeEmail(),  
     body('password').isLength({ min: 6 }),
