@@ -28,6 +28,7 @@ export const signup = async (req, res) => {
 
     const userAlreadyExists = await User.findOne({ email });
     if (userAlreadyExists) {
+      logger.warn(`Signup attempt with existing email: ${email}`);
       return res.status(400).json({ success: false, message: "User already exists" });
     }
 
@@ -58,6 +59,7 @@ export const signup = async (req, res) => {
     });
 
   } catch (error) {
+    logger.error(`Error during signup for email: ${email}, Error: ${error.message}`);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -122,6 +124,8 @@ export const login = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
+    logger.info(`User logged in: ${user.email}`);
+
     generateTokenAndSetCookie(res, user._id);
     user.lastLogin = new Date();
     await user.save();
@@ -137,6 +141,7 @@ export const login = async (req, res) => {
 
   } catch (error) {
     console.log("Error in login", error);
+    logger.error(`Login attempt failed for email: ${email}, Error: ${error.message}`);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -147,6 +152,7 @@ export const login = async (req, res) => {
 export const logout = async (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ success: true, message: "Logged out successfully" });
+  logger.info(`User logged out successfully: ${email}`);
 };
 
 
@@ -209,6 +215,7 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
+      logger.warn(`Password reset failed for email: ${user.email}`);
       return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
     }
 
@@ -220,10 +227,12 @@ export const resetPassword = async (req, res) => {
 
     await sendResetSuccessEmail(user.email);
 
+    logger.info(`Password reset successful for email: ${user.email}`);
     res.status(200).json({ success: true, message: "Password reset successful" });
 
   } catch (error) {
     console.log("Error in resetPassword", error);
+    logger.error(`Error during password reset for email: ${email}, Error: ${error.message}`);
     res.status(400).json({ success: false, message: error.message });
   }
 };
