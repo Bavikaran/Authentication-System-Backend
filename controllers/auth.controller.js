@@ -13,6 +13,7 @@ import CustomError from '../utils/customError.js';
 
 
 
+
 export const signup = async (req, res) => {
 
   const errors = validationResult(req);
