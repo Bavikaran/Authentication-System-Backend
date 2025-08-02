@@ -57,32 +57,49 @@ export const signup = async (req, res) => {
 
 
 export const verifyEmail = async (req, res) => {
-  const { code } = req.body;
+  const { code, resend } = req.body;  // Added resend flag
 
   try {
+    // Check if the user is either verifying or resending the verification link
     const user = await User.findOne({
-      verificationToken: code,
-      verificationTokenExpiresAt: { $gt: Date.now() },
+      $or: [
+        { verificationToken: code, verificationTokenExpiresAt: { $gt: Date.now() } },
+        { email: req.body.email, isVerified: false } // Check if the email exists but is unverified
+      ],
     });
 
     if (!user) {
       return res.status(400).json({ success: false, message: "Invalid or expired verification code" });
     }
 
-    user.isVerified = true;
-    user.verificationToken = undefined;
-    user.verificationTokenExpiresAt = undefined;
-    await user.save();
+    if (user.isVerified && !resend) {
+      return res.status(400).json({
+        success: false,
+        message: "Account is already verified. No need to resend the verification link.",
+      });
+    }
 
-    await sendWelcomeEmail(user.email, user.name);
+    // If not verified or resend is triggered, generate a new verification token and expiration
+    if (resend || !user.isVerified) {
+      const newVerificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+      user.verificationToken = newVerificationToken;
+      user.verificationTokenExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours validity
 
+      await user.save();
+
+      // Send the verification email with the new token
+      await sendVerificationEmail(user.email, newVerificationToken);
+
+      return res.status(200).json({
+        success: true,
+        message: "Verification email resent. Please check your inbox.",
+      });
+    }
+
+    // If already verified, no need to proceed further
     res.status(200).json({
       success: true,
       message: "Email verified successfully",
-      user: {
-        ...user._doc,
-        password: undefined,
-      },
     });
 
   } catch (error) {
@@ -92,15 +109,18 @@ export const verifyEmail = async (req, res) => {
 };
 
 
-
-
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
+      return res.status(400).json({ success: false, message: "user not found" });
+    }
+
+    // Check if the account is verified
+    if (!user.isVerified) {  // Assuming `isVerified` is a boolean field
+      return res.status(400).json({ success: false, message: "Account not verified. Please verify." });
     }
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
