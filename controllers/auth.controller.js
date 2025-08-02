@@ -15,20 +15,21 @@ import CustomError from '../utils/customError.js';
 
 
 
-export const signup = async (req, res) => {
+export const signup = async (req, res, next) => {
+  const errors = validationResult(req); // Check for validation errors
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() }); // Return validation errors
+  }
 
-  const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    
   const { email, password, name, userType } = req.body;
 
   try {
+    // Check if required fields are provided
     if (!email || !password || !name || !userType) {
       throw new CustomError(400, "All fields are required");
     }
 
+    // Check if user already exists
     const userAlreadyExists = await User.findOne({ email });
     if (userAlreadyExists) {
       logger.warn(`Signup attempt with existing email: ${email}`);
@@ -36,7 +37,10 @@ export const signup = async (req, res) => {
     }
   
 
+    // Hash the password
     const hashedPassword = await bcryptjs.hash(password, 10);
+
+    // Generate a verification token
     const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
 
     const user = new User({
@@ -45,71 +49,94 @@ export const signup = async (req, res) => {
       name,
       userType,
       verificationToken,
-      verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+      verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours validity
     });
 
+    // Save the user to the database
     await user.save();
 
+    // Generate JWT and set the cookie
     generateTokenAndSetCookie(res, user._id);
+
+    // Send verification email
     await sendVerificationEmail(user.email, verificationToken);
-     
+
+    // Send success response
     res.status(201).json({
       success: true,
       message: "User created successfully",
       user: {
         ...user._doc,
-        password: undefined,
+        password: undefined, // Hide password in the response
       },
     });
 
     logger.info(`User signed up successfully: ${email}`);
 
   } catch (error) {
-    next(error);
+    next(error); // Pass error to the next middleware
     logger.error(`Error during signup for email: ${email}, Error: ${error.message}`);
   }
-  
 };
 
 
 
 export const verifyEmail = async (req, res) => {
-  const { code } = req.body;
+  const { code, resend } = req.body;
 
   try {
+    // Find user based on code or email (if not verified)
     const user = await User.findOne({
-      verificationToken: code,
-      verificationTokenExpiresAt: { $gt: Date.now() },
+      $or: [
+        { verificationToken: code, verificationTokenExpiresAt: { $gt: Date.now() } }, // Check if token is valid
+        { email: req.body.email, isVerified: false } // Check if the email is unverified
+      ],
     });
 
     if (!user) {
       return res.status(400).json({ success: false, message: "Invalid or expired verification code" });
     }
 
-    user.isVerified = true;
-    user.verificationToken = undefined;
-    user.verificationTokenExpiresAt = undefined;
-    await user.save();
+    // If user is already verified and not asking for resend
+    if (user.isVerified && !resend) {
+      return res.status(400).json({
+        success: false,
+        message: "Account is already verified. No need to resend the verification link.",
+      });
+    }
 
-    await sendWelcomeEmail(user.email, user.name);
+    // If not verified or resend is triggered, generate a new token
+    if (resend || !user.isVerified) {
+      const newVerificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+      user.verificationToken = newVerificationToken;
+      user.verificationTokenExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours validity
+
+      // Save the new verification token
+      await user.save();
+
+      // Send the verification email with the new token
+      await sendVerificationEmail(user.email, newVerificationToken);
+
+      return res.status(200).json({
+        success: true,
+        message: "Verification email resent. Please check your inbox.",
+      });
+    }
+
+    // If the code is correct and the user is not already verified, set 'isVerified' to true
+    user.isVerified = true; // Mark the account as verified
+    await user.save(); // Save the updated user
 
     res.status(200).json({
       success: true,
       message: "Email verified successfully",
-      user: {
-        ...user._doc,
-        password: undefined,
-      },
     });
 
   } catch (error) {
-    console.log("error in verifyEmail", error);
-    next(error);
+    console.error("Error in verifyEmail", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
-  
 };
-
-
 
 
 export const login = async (req, res) => {
@@ -124,7 +151,7 @@ export const login = async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return next(new CustomError(400, "Invalid credentials" ));
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
