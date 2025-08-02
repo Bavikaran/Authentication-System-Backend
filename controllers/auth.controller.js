@@ -10,6 +10,8 @@ import {
   sendResetSuccessEmail
 } from '../utils/emails.js';
 import {validationResult} from 'express-validator';
+import CustomError from '../utils/customError.js';
+
 
 
 
@@ -24,13 +26,13 @@ export const signup = async (req, res) => {
 
   try {
     if (!email || !password || !name || !userType) {
-      throw new Error("All fields are required");
+      throw new CustomError(400, "All fields are required");
     }
 
     const userAlreadyExists = await User.findOne({ email });
     if (userAlreadyExists) {
+      return next(new CustomError(400, "User already exists with this email"));
       logger.warn(`Signup attempt with existing email: ${email}`);
-      return res.status(400).json({ success: false, message: "User already exists" });
     }
 
     const hashedPassword = await bcryptjs.hash(password, 10);
@@ -62,9 +64,10 @@ export const signup = async (req, res) => {
     logger.info(`User signed up successfully: ${email}`);
 
   } catch (error) {
+    next(error);
     logger.error(`Error during signup for email: ${email}, Error: ${error.message}`);
-    res.status(400).json({ success: false, message: error.message });
   }
+  
 };
 
 
@@ -100,8 +103,9 @@ export const verifyEmail = async (req, res) => {
 
   } catch (error) {
     console.log("error in verifyEmail", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    next(error);
   }
+  
 };
 
 
@@ -119,12 +123,12 @@ export const login = async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
+      return next(new CustomError(400, "Invalid credentials" ));
     }
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
+      return next(new CustomError(400, "Invalid credentials" ));
     }
 
     logger.info(`User logged in: ${user.email}`);
@@ -144,18 +148,27 @@ export const login = async (req, res) => {
 
   } catch (error) {
     console.log("Error in login", error);
+    next(error);
     logger.error(`Login attempt failed for email: ${email}, Error: ${error.message}`);
-    res.status(400).json({ success: false, message: error.message });
   }
+  
 };
 
 
 
 
 export const logout = async (req, res) => {
-  res.clearCookie("token");
-  res.status(200).json({ success: true, message: "Logged out successfully" });
-  logger.info(`User logged out successfully: ${email}`);
+
+  try{
+    res.clearCookie("token");
+    res.status(200).json({ success: true, message: "Logged out successfully" });
+    logger.info(`User logged out successfully: ${email}`);
+  }
+  catch (error) {
+    console.log("Error in logout", error);
+    next(error);
+  }
+
 };
 
 
@@ -175,7 +188,7 @@ export const forgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ success: false, message: "User not found" });
+      return next(new CustomError(400, "User not found with this email"));
     }
 
     const resetToken = crypto.randomBytes(20).toString("hex");
@@ -193,7 +206,7 @@ export const forgotPassword = async (req, res) => {
 
   } catch (error) {
     console.log("Error in forgotPassword", error);
-    res.status(400).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
@@ -218,8 +231,8 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
+      return next(new CustomError(400, "Invalid or expired reset token" ));
       logger.warn(`Password reset failed for email: ${user.email}`);
-      return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
     }
 
     const hashedPassword = await bcryptjs.hash(password, 10);
@@ -235,9 +248,10 @@ export const resetPassword = async (req, res) => {
 
   } catch (error) {
     console.log("Error in resetPassword", error);
+    next(error);
     logger.error(`Error during password reset for email: ${email}, Error: ${error.message}`);
-    res.status(400).json({ success: false, message: error.message });
   }
+  
 };
 
 
@@ -249,14 +263,14 @@ export const checkAuth = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("-password");
     if (!user) {
-      return res.status(400).json({ success: false, message: "User not found" });
+      return  next(new CustomError(400, "User not found"));
     }
 
     res.status(200).json({ success: true, user });
 
   } catch (error) {
     console.log("Error in checkAuth", error);
-    res.status(400).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
