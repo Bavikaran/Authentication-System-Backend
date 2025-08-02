@@ -2,6 +2,7 @@ import { User } from '../models/user.model.js';
 import crypto from "crypto";
 import bcryptjs from 'bcryptjs';
 import { generateTokenAndSetCookie } from '../utils/generateTokenAndSetCookie.js';
+import logger from '../utils/logger.js';
 import {
   sendVerificationEmail,
   sendWelcomeEmail,
@@ -57,6 +58,8 @@ export const signup = async (req, res) => {
         password: undefined,
       },
     });
+
+    logger.info(`User signed up successfully: ${email}`);
 
   } catch (error) {
     logger.error(`Error during signup for email: ${email}, Error: ${error.message}`);
