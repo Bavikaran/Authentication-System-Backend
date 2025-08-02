@@ -31,9 +31,10 @@ export const signup = async (req, res) => {
 
     const userAlreadyExists = await User.findOne({ email });
     if (userAlreadyExists) {
-      return next(new CustomError(400, "User already exists with this email"));
       logger.warn(`Signup attempt with existing email: ${email}`);
+      return next(new CustomError(400, "User already exists with this email"));
     }
+  
 
     const hashedPassword = await bcryptjs.hash(password, 10);
     const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
@@ -128,6 +129,7 @@ export const login = async (req, res) => {
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
+      logger.warn(`Login attempt failed for email: ${email}`);
       return next(new CustomError(400, "Invalid credentials" ));
     }
 
@@ -231,8 +233,8 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return next(new CustomError(400, "Invalid or expired reset token" ));
       logger.warn(`Password reset failed for email: ${user.email}`);
+      return next(new CustomError(400, "Invalid or expired reset token" ));
     }
 
     const hashedPassword = await bcryptjs.hash(password, 10);
