@@ -10,6 +10,7 @@ import {
 } from '../utils/emails.js';
 
 
+
 export const signup = async (req, res) => {
   const { email, password, name, userType } = req.body;
 
