@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sender = `INTE21323 Auth App <${process.env.EMAIL_USER}>`;
+const sender = `EDU-HUB <${process.env.EMAIL_USER}>`;
 
 
 export const sendVerificationEmail = async (email, verificationToken) => {

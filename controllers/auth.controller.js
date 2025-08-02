@@ -122,6 +122,7 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
+
 export const login = async (req, res,next) => {
 
   const errors = validationResult(req);
@@ -134,7 +135,7 @@ export const login = async (req, res,next) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
+      return res.status(400).json({ success: false, message: "User not found" });
     }
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
