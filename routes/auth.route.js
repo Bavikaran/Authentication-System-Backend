@@ -1,8 +1,9 @@
 import express from "express"; 
-import { signup,login,logout,verifyEmail,forgotPassword,resetPassword,checkAuth } from "../controllers/auth.controller.js"; 
+import { signup,login,logout,verifyEmail,forgotPassword,resetPassword,checkAuth } from "../controllers/auth.controller.js";
 import { verifyToken } from "../middleware/verifyToken.js";
 import sanitizeInput from "../middleware/sanitizeInput.js";
 import {body} from 'express-validator';
+import authorizedRoles from "../middleware/roleMiddleware.js";
 
 
 
@@ -13,7 +14,7 @@ router.get("/check-auth", verifyToken, checkAuth);
 
 
 router.post("/signup",
-    body('email').isEmail().normalizeEmail(),  
+    body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 }),
     sanitizeInput, signup); 
 
@@ -22,6 +23,19 @@ router.post("/login",
     body('email').isEmail().normalizeEmail(),  
     body('password').isLength({ min: 6 }),
     sanitizeInput, login);
+
+
+router.get('/teacher', verifyToken,
+    authorizedRoles('teacher'),
+     (req, res)=>{
+    res.json({ message: "Welcome Teacher" });
+});
+
+router.get('/student', verifyToken,
+    authorizedRoles('student'),
+     (req, res)=>{
+    res.json({ message: "Welcome Student" });
+});
 
 
 router.post("/logout", logout);
