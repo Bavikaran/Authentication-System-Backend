@@ -40,10 +40,6 @@ export const signup = async (req, res) => {
     generateTokenAndSetCookie(res, user._id);
     await sendVerificationEmail(user.email, verificationToken);
      
-    
-
-
-
     res.status(201).json({
       success: true,
       message: "User created successfully",
@@ -96,6 +92,8 @@ export const verifyEmail = async (req, res) => {
 };
 
 
+
+
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -130,10 +128,14 @@ export const login = async (req, res) => {
 };
 
 
+
+
 export const logout = async (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };
+
+
 
 
 
@@ -168,6 +170,8 @@ export const forgotPassword = async (req, res) => {
 
 
 
+
+
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -199,6 +203,10 @@ export const resetPassword = async (req, res) => {
 };
 
 
+
+
+
+
 export const checkAuth = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("-password");
@@ -207,8 +215,7 @@ export const checkAuth = async (req, res) => {
     }
 
     res.status(200).json({ success: true, user });
-//
-//
+
   } catch (error) {
     console.log("Error in checkAuth", error);
     res.status(400).json({ success: false, message: error.message });
