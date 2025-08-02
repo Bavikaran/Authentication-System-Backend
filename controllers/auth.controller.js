@@ -15,27 +15,31 @@ import CustomError from '../utils/customError.js';
 
 
 
-export const signup = async (req, res) => {
+export const signup = async (req, res, next) => {
+  const errors = validationResult(req); // Check for validation errors
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() }); // Return validation errors
+  }
 
-  const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    
   const { email, password, name, userType } = req.body;
 
   try {
+    // Check if required fields are provided
     if (!email || !password || !name || !userType) {
       throw new CustomError(400, "All fields are required");
     }
 
+    // Check if user already exists
     const userAlreadyExists = await User.findOne({ email });
     if (userAlreadyExists) {
       return next(new CustomError(400, "User already exists with this email"));
       logger.warn(`Signup attempt with existing email: ${email}`);
     }
 
+    // Hash the password
     const hashedPassword = await bcryptjs.hash(password, 10);
+
+    // Generate a verification token
     const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
 
     const user = new User({
@@ -44,30 +48,34 @@ export const signup = async (req, res) => {
       name,
       userType,
       verificationToken,
-      verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+      verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours validity
     });
 
+    // Save the user to the database
     await user.save();
 
+    // Generate JWT and set the cookie
     generateTokenAndSetCookie(res, user._id);
+
+    // Send verification email
     await sendVerificationEmail(user.email, verificationToken);
-     
+
+    // Send success response
     res.status(201).json({
       success: true,
       message: "User created successfully",
       user: {
         ...user._doc,
-        password: undefined,
+        password: undefined, // Hide password in the response
       },
     });
 
     logger.info(`User signed up successfully: ${email}`);
 
   } catch (error) {
-    next(error);
+    next(error); // Pass error to the next middleware
     logger.error(`Error during signup for email: ${email}, Error: ${error.message}`);
   }
-  
 };
 
 
