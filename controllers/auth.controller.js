@@ -8,10 +8,17 @@ import {
   sendPasswordResetEmail,
   sendResetSuccessEmail
 } from '../utils/emails.js';
+import {validationResult} from 'express-validator';
 
 
 
 export const signup = async (req, res) => {
+
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    
   const { email, password, name, userType } = req.body;
 
   try {
@@ -96,6 +103,12 @@ export const verifyEmail = async (req, res) => {
 
 
 export const login = async (req, res) => {
+
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
   const { email, password } = req.body;
 
   try {
@@ -141,6 +154,12 @@ export const logout = async (req, res) => {
 
 
 export const forgotPassword = async (req, res) => {
+
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
   const { email } = req.body;
 
   try {
@@ -174,6 +193,12 @@ export const forgotPassword = async (req, res) => {
 
 
 export const resetPassword = async (req, res) => {
+
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
   try {
     const { token } = req.params;
     const { password } = req.body;
