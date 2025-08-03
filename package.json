@@ -26,6 +26,8 @@
     "xss": "^1.0.15"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.0",
+    "babel-jest": "^30.0.5",
     "jest": "^30.0.5",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.4"
@@ -33,5 +35,4 @@
   "jest": {
     "testEnvironment": "node"
   }
-  
 }
