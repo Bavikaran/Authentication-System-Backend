@@ -124,72 +124,59 @@ export const verifyEmail = async (req, res) => {
 
 
 export const login = async (req, res, next) => {
-  // Check validation errors from request
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
   const { email, password } = req.body;
 
   try {
-    // Find user by email
+    // Find the user by email
     const user = await User.findOne({ email });
+
+    // If user doesn't exist
     if (!user) {
-      return res.status(400).json({ success: false, message: "User not found" });
+      return res.status(400).json({ message: "User not found" });
     }
 
-    // Check if password is correct
+    // If the user's account is not verified
+    if (!user.isVerified) {
+      // Generate a new verification token (if needed, you can generate a new token here)
+      const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Save the new verification token to the user record (optional, if you'd like to regenerate it)
+      user.verificationToken = verificationToken;
+      user.verificationTokenExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // Token expires in 24 hours
+      await user.save();
+
+      // Send verification email using the existing function
+      await sendVerificationEmail(user.email, verificationToken);
+
+      // Inform the user to check their email
+      return res.status(400).json({
+        message: `Your account is not verified. A verification email has been sent to ${email}. Please check your inbox.`
+      });
+    }
+
+    // If the password is incorrect
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Log the successful login
-    logger.info(`User logged in: ${user.email}`);
-
-    // Generate token and set it in the cookie
+    // If user is verified and password is correct, generate JWT and set the cookie
     generateTokenAndSetCookie(res, user._id);
 
-    // Update last login time
-    user.lastLogin = new Date();
-    await user.save();
-
-    // Send success response with user data (excluding password)
     res.status(200).json({
       success: true,
       message: "Logged in successfully",
       user: {
         ...user._doc,
-        password: undefined, // Exclude password from the response
+        password: undefined, // Don't send the password
       },
     });
 
   } catch (error) {
-    // Log the error and send response
-    console.log("Error in login", error);
-    logger.error(`Login attempt failed for email: ${email}, Error: ${error.message}`);
-    next(error);
+    console.error("Login error:", error);
+    next(error);  // Pass error to the next middleware
   }
 };
-
-export const logout = async (req, res) => {
-
-  try{
-    res.clearCookie("token");
-    res.status(200).json({ success: true, message: "Logged out successfully" });
-    
-  }
-  catch (error) {
-    console.log("Error in logout", error);
-    next(error);
-  }
-
-};
-
-
-
-
 
 export const forgotPassword = async (req, res) => {
 
@@ -274,5 +261,14 @@ export const checkAuth = async (req, res) => {
 
 
 
-
+export const logout = (req, res) => {
+  try {
+    res.clearCookie("token"); // Clear the JWT cookie
+    res.status(200).json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.log("Error in logout", error);
+    logger.error(`Logout attempt failed, Error: ${error.message}`);
+    next(error);
+  }
+};
 
