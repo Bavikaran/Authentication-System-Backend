@@ -122,58 +122,56 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
-
 export const login = async (req, res, next) => {
   const { email, password } = req.body;
 
   try {
-    // Find the user by email
+    // Find user by email
     const user = await User.findOne({ email });
 
     // If user doesn't exist
     if (!user) {
-      return res.status(400).json({ message: "User not found" });
+      return res.status(400).json({ message: 'User not found' });
     }
 
     // If the user's account is not verified
     if (!user.isVerified) {
-      // Generate a new verification token (if needed, you can generate a new token here)
+      // Generate a new verification token if the account is not verified
       const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
-
-      // Save the new verification token to the user record (optional, if you'd like to regenerate it)
+      
+      // Save the new verification token to the user record (optional)
       user.verificationToken = verificationToken;
-      user.verificationTokenExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // Token expires in 24 hours
+      user.verificationTokenExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // Token valid for 24 hours
       await user.save();
 
-      // Send verification email using the existing function
+      // Send the verification email using the existing function
       await sendVerificationEmail(user.email, verificationToken);
 
-      // Inform the user to check their email
+      // Send response to user stating the verification email has been sent
       return res.status(400).json({
-        message: `Your account is not verified. A verification email has been sent to ${email}. Please check your inbox.`
+        message: `Your account is not verified. A verification email has been sent to ${email}. Please check your inbox.`,
       });
     }
 
     // If the password is incorrect
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     // If user is verified and password is correct, generate JWT and set the cookie
     generateTokenAndSetCookie(res, user._id);
 
+    // Return success response with user data (excluding password)
     res.status(200).json({
       success: true,
-      message: "Logged in successfully",
+      message: 'Logged in successfully',
       user: {
         ...user._doc,
         password: undefined, // Don't send the password
       },
     });
-
   } catch (error) {
-    console.error("Login error:", error);
     next(error);  // Pass error to the next middleware
   }
 };
