@@ -123,51 +123,55 @@ export const verifyEmail = async (req, res) => {
 };
 
 
-export const login = async (req, res,next) => {
-
+export const login = async (req, res, next) => {
+  // Check validation errors from request
   const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
   const { email, password } = req.body;
 
   try {
+    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ success: false, message: "User not found" });
     }
 
+    // Check if password is correct
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
-      return next(new CustomError(400, "Invalid credentials" ));
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
+    // Log the successful login
     logger.info(`User logged in: ${user.email}`);
 
+    // Generate token and set it in the cookie
     generateTokenAndSetCookie(res, user._id);
+
+    // Update last login time
     user.lastLogin = new Date();
     await user.save();
 
+    // Send success response with user data (excluding password)
     res.status(200).json({
       success: true,
       message: "Logged in successfully",
       user: {
         ...user._doc,
-        password: undefined,
+        password: undefined, // Exclude password from the response
       },
     });
 
   } catch (error) {
+    // Log the error and send response
     console.log("Error in login", error);
-    next(error);
     logger.error(`Login attempt failed for email: ${email}, Error: ${error.message}`);
+    next(error);
   }
-  
 };
-
-
-
 
 export const logout = async (req, res) => {
 
