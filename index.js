@@ -6,9 +6,10 @@ import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.route.js';
 import errorHandler from './middleware/errorHandler.js';
 
-
 dotenv.config();
+const express = require('express');
 const app = express(); 
+const dotenv = require("dotenv");
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -33,6 +34,11 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/api/auth', authRoutes); 
 
+swaggerDocs(app);
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:$5000`);
+  console.log(`Swagger docs available at http://localhost:$5000/api-docs`);
+});
 
 
 app.listen(PORT, () => {
