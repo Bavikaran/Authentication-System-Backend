@@ -5,6 +5,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.route.js';
 import errorHandler from './middleware/errorHandler.js';
+import swaggerDocs from './swagger.js';
 
 dotenv.config();
 const express = require('express');
